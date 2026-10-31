@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-eval-bench"
+version = "0.1.0"
+description = "A local-first evaluation harness for LLM-powered products"
+requires-python = ">=3.11"
+authors = [{ name = "Ritik" }]
+dependencies = [
+    "typer>=0.12.5",
+    "rich>=13.9.4",
+    "fastapi>=0.115.5",
+    "uvicorn[standard]>=0.32.1",
+    "jinja2>=3.1.4",
+    "pydantic>=2.9.2",
+    "pyyaml>=6.0.2",
+    "openai>=1.54.4",
+    "anthropic>=0.39.0",
+]
+
+[project.scripts]
+eval = "llm_eval_bench.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_eval_bench"]
