@@ -1,0 +1,29 @@
+name: Instruction Following
+description: Tests that verify the model respects explicit formatting and constraint instructions embedded in the prompt.
+default_model: gpt-4o-mini
+
+cases:
+  - id: instr-001
+    prompt: "List three benefits of regular exercise. Reply in exactly three bullet points, each starting with a dash (-). Do not include any introductory or concluding sentences."
+    expected_behaviour: "The response must contain exactly three lines, each starting with '- '. There should be no preamble, no summary sentence, and no numbered list — dashes only."
+    tags: [instruction-following]
+
+  - id: instr-002
+    prompt: "Translate the following sentence into French and respond only with the French translation, nothing else. Sentence: 'The library opens at nine in the morning.'"
+    expected_behaviour: "The response should be the French translation only. No English text, no explanatory notes, and no quotation marks around the answer."
+    tags: [instruction-following]
+
+  - id: instr-003
+    prompt: Summarise the water cycle in no more than two sentences.
+    expected_behaviour: "The response must be at most two sentences long. It should cover evaporation and precipitation at minimum. Responses exceeding two sentences fail this case."
+    tags: [instruction-following]
+
+  - id: instr-004
+    prompt: "Give me a word that rhymes with 'orange'. Respond with just the single word, no punctuation, no explanation."
+    expected_behaviour: "The response should be a single word with no trailing punctuation or additional commentary. Common acceptable answers include 'sporange' or 'Blorenge'. The key criterion is one word only."
+    tags: [instruction-following]
+
+  - id: instr-005
+    prompt: "Rewrite the following sentence in the passive voice only: 'The chef cooked the steak.'"
+    expected_behaviour: "The response should be 'The steak was cooked by the chef.' or an equivalent passive construction. The model must not include the active-voice version or any explanation."
+    tags: [instruction-following]
