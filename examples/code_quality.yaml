@@ -1,0 +1,29 @@
+name: Code Quality
+description: Tests that verify the model produces correct, idiomatic Python code that handles edge cases and avoids common pitfalls.
+default_model: gpt-4o-mini
+
+cases:
+  - id: code-001
+    prompt: "Write a Python function called `is_palindrome(s: str) -> bool` that returns True if the string is a palindrome, ignoring case and non-alphanumeric characters. Include the function definition only, no usage examples."
+    expected_behaviour: "The function must correctly handle mixed case (e.g., 'Racecar' -> True), punctuation (e.g., 'A man, a plan, a canal: Panama' -> True), and empty strings (-> True). It must not use global state or import anything beyond the standard library."
+    tags: [code, python]
+
+  - id: code-002
+    prompt: "Write a Python function called `flatten(lst)` that takes a nested list of arbitrary depth and returns a flat list of all values. Include the function definition only."
+    expected_behaviour: "The function must handle lists nested to any depth, not just one level deep. It must work with mixed types (integers, strings). Using recursion or a stack-based approach is both acceptable."
+    tags: [code, python]
+
+  - id: code-003
+    prompt: "Write a Python function called `word_count(text: str) -> dict` that returns a dictionary mapping each unique word to its frequency. Words should be lowercased and stripped of punctuation. Include the function definition only."
+    expected_behaviour: "The function must lowercase all words, strip leading/trailing punctuation, and count correctly. 'Hello, hello!' should yield {'hello': 2}. It must not rely on any third-party library."
+    tags: [code, python]
+
+  - id: code-004
+    prompt: "Write a Python function called `safe_divide(a: float, b: float)` that returns a / b, or None if b is zero. Include the function definition only."
+    expected_behaviour: "The function must return None (not raise an exception) when b is 0 or 0.0. It should handle negative numerators and denominators correctly. No global state, no print statements."
+    tags: [code, python]
+
+  - id: code-005
+    prompt: "Write a Python function called `deduplicate(items: list) -> list` that returns a new list with duplicates removed, preserving the original order of first occurrences. Include the function definition only."
+    expected_behaviour: "The function must preserve insertion order (e.g., [3, 1, 2, 1, 3] -> [3, 1, 2]). It must not sort the output. The function must return a new list and not mutate the input."
+    tags: [code, python]

@@ -1,0 +1,29 @@
+name: Factuality
+description: Tests that verify the model can accurately recall factual information including geography, history, and science.
+default_model: gpt-4o-mini
+
+cases:
+  - id: factuality-001
+    prompt: What is the capital city of Australia?
+    expected_behaviour: The model should answer "Canberra". It must not confuse the capital with Sydney or Melbourne, which are larger but not the capital.
+    tags: [factuality]
+
+  - id: factuality-002
+    prompt: In which year did the Berlin Wall fall?
+    expected_behaviour: The model should state 1989. Bonus credit for mentioning November 9th, 1989, but the year alone is sufficient.
+    tags: [factuality]
+
+  - id: factuality-003
+    prompt: What is the speed of light in a vacuum, approximately?
+    expected_behaviour: The model should state approximately 299,792 kilometres per second (or 3 × 10^8 m/s). Minor rounding is acceptable; orders-of-magnitude errors are not.
+    tags: [factuality]
+
+  - id: factuality-004
+    prompt: Who wrote the novel "One Hundred Years of Solitude"?
+    expected_behaviour: The model should correctly attribute the novel to Gabriel García Márquez. Misspelling the name is acceptable; attributing it to another author is not.
+    tags: [factuality]
+
+  - id: factuality-005
+    prompt: What is the chemical symbol for gold?
+    expected_behaviour: The model should answer "Au". It may optionally explain that the symbol derives from the Latin "aurum".
+    tags: [factuality]
