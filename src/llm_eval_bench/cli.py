@@ -74,5 +74,18 @@ def run(
     )
 
 
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8000, "--port", "-p", help="Bind port"),
+    results_dir: Path = typer.Option(Path("results"), "--results-dir", help="Results directory"),
+):
+    """Start the web dashboard."""
+    import uvicorn
+    import llm_eval_bench.dashboard as dashboard_module
+    dashboard_module.RESULTS_DIR = results_dir
+    uvicorn.run(dashboard_module.app, host=host, port=port)
+
+
 if __name__ == "__main__":
     app()
