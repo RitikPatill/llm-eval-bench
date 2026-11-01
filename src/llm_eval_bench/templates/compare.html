@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Comparing <code>{{ run_a.run_id }}</code> → <code>{{ run_b.run_id }}</code></h1>
+<p>
+  <strong>Suite A:</strong> {{ run_a.suite_name }} &nbsp;|&nbsp;
+  <strong>Suite B:</strong> {{ run_b.suite_name }}
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Case ID</th>
+      <th>Score A</th>
+      <th>Score B</th>
+      <th>Δ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    {% if row.delta is not none and row.delta < 0 %}
+    <tr class="regression">
+    {% elif row.delta is not none and row.delta > 0 %}
+    <tr class="improvement">
+    {% else %}
+    <tr>
+    {% endif %}
+      <td>{{ row.case_id }}</td>
+      <td>{% if row.score_a is not none %}{{ "%.2f" | format(row.score_a) }}{% else %}—{% endif %}</td>
+      <td>{% if row.score_b is not none %}{{ "%.2f" | format(row.score_b) }}{% else %}—{% endif %}</td>
+      <td>
+        {% if row.delta is not none %}
+          {% if row.delta >= 0 %}+{{ "%.2f" | format(row.delta) }}{% else %}{{ "%.2f" | format(row.delta) }}{% endif %}
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

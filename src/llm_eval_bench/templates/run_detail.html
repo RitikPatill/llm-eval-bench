@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Run: {{ run.run_id }}</h1>
+<p>
+  <strong>Suite:</strong> {{ run.suite_name }} &nbsp;|&nbsp;
+  <strong>Pass Rate:</strong> {{ "%.0f%%" | format(pass_rate * 100) }}
+  ({{ passed }}/{{ run.cases | length }}) &nbsp;|&nbsp;
+  <strong>Threshold:</strong> {{ run.threshold }}
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Model</th>
+      <th>Score</th>
+      <th>Pass</th>
+      <th>Rationale</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for case in run.cases %}
+    <tr>
+      <td>{{ case.case_id }}</td>
+      <td>{{ case.model }}</td>
+      <td>{{ "%.2f" | format(case.score) }}</td>
+      <td class="{{ 'pass' if case.passed else 'fail' }}">{{ "✓" if case.passed else "✗" }}</td>
+      <td>{{ case.rationale }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Details</h2>
+{% for case in run.cases %}
+<details>
+  <summary>{{ case.case_id }} — score {{ "%.2f" | format(case.score) }}</summary>
+  <p><strong>Prompt</strong></p>
+  <pre>{{ case.prompt }}</pre>
+  <p><strong>Response</strong></p>
+  <pre>{{ case.response }}</pre>
+</details>
+{% endfor %}
+{% endblock %}

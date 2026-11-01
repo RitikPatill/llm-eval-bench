@@ -45,3 +45,17 @@ def load_run(run_id: str, results_dir: Path = Path("results")) -> RunResult:
 
 def make_run_id() -> str:
     return datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+
+def list_runs(results_dir: Path = Path("results")) -> list[RunResult]:
+    """Returns all saved runs sorted newest-first. Returns [] if dir missing."""
+    if not results_dir.exists():
+        return []
+    runs = []
+    for path in results_dir.glob("*.json"):
+        try:
+            runs.append(RunResult.model_validate_json(path.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    runs.sort(key=lambda r: r.run_id, reverse=True)
+    return runs

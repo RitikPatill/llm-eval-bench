@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Eval Runs</h1>
+{% if run_rows %}
+<table>
+  <thead>
+    <tr>
+      <th>Run ID</th>
+      <th>Suite</th>
+      <th>Cases</th>
+      <th>Passed</th>
+      <th>Pass Rate</th>
+      <th>Created At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in run_rows %}
+    <tr>
+      <td><a href="/runs/{{ row.run.run_id }}">{{ row.run.run_id }}</a></td>
+      <td>{{ row.run.suite_name }}</td>
+      <td>{{ row.run.cases | length }}</td>
+      <td>{{ row.passed }}</td>
+      <td>{{ "%.0f%%" | format(row.pass_rate * 100) }}</td>
+      <td>{{ row.run.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No runs found. Run <code>eval run &lt;suite.yaml&gt;</code> first.</p>
+{% endif %}
+{% endblock %}
