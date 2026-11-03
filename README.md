@@ -8,7 +8,7 @@ LLM Eval Bench is a local-first evaluation harness for anyone building products 
 
 Every serious LLM product team needs regression testing, but existing frameworks (PromptFoo, RAGAS, Braintrust) are either vendor-locked, heavy, or SaaS. LLM Eval Bench gives you a zero-dependency-on-cloud, fully inspectable harness that runs on `localhost` in under a minute. Flat JSON result files mean full reproducibility and easy diffing — no database, no account required.
 
-## What works now (M4)
+## What works now (M5)
 
 - Python package installable via `pip install -e .`
 - **`eval run <suite.yaml>`** — fully working CLI command; `rich` progress bar updates per-case with score and pass/fail as each result lands; prints a summary panel (pass count, pass rate, results path) on completion
@@ -18,8 +18,11 @@ Every serious LLM product team needs regression testing, but existing frameworks
 - **Pydantic v2 schema** — `TestCase`, `EvalSuite`, `CaseResult`, `RunResult` models
 - **YAML suite loader** — `load_suite(path)` reads and validates YAML into `EvalSuite`
 - **Three bundled example suites** under `examples/`: `factuality.yaml`, `instruction_following.yaml`, `code_quality.yaml`
-- **Unit tests** — runner (model resolution, SDK routing, end-to-end with mocks), judge (JSON parsing, fallback, score clamping), and dashboard (all routes) — all passing
+- **Unit tests** — runner (model resolution, SDK routing, end-to-end with mocks), judge (JSON parsing, fallback, score clamping), dashboard (all routes), CLI (list/compare), config loader — all passing
 - **`eval serve`** — starts a FastAPI + Jinja2 dashboard at `http://localhost:8000`; index lists all runs with pass rates; run-detail page shows per-case scores and prompt/response accordions; compare page diffs two runs side-by-side with regression/improvement highlighting
+- **`eval list`** — prints a Rich table of all past runs (run ID, suite, cases, passed, pass rate, created at), newest-first
+- **`eval compare <run_id_a> <run_id_b>`** — prints a per-case score delta table (red = regression, green = improvement); summary line counts regressions/improvements/unchanged
+- **Config system** — load defaults from `~/.evalrc.yaml` or `./.evalrc.yaml`; override with `EVAL_JUDGE_MODEL`, `EVAL_BASE_URL`, `EVAL_THRESHOLD`, `EVAL_RESULTS_DIR`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` env vars; no longer have to repeat flags on every invocation
 
 ## Quick start
 
@@ -43,9 +46,28 @@ eval run examples/code_quality.yaml --model my-local-model --base-url http://loc
 # Set a custom pass threshold (default 0.5)
 eval run examples/factuality.yaml --model gpt-4o-mini --threshold 0.7
 
-# Serve the dashboard (available from M4)
+# Serve the dashboard
 eval serve
+
+# List all past runs
+eval list
+
+# Compare two runs by run ID
+eval compare 20241031_143022 20241101_090000
 ```
+
+## Config file (`.evalrc.yaml`)
+
+Place `.evalrc.yaml` in your project root (or `~/.evalrc.yaml` for global defaults):
+
+```yaml
+judge_model: gpt-4o-mini
+threshold: 0.5
+results_dir: results
+# base_url: http://localhost:11434/v1  # for local endpoints
+```
+
+Environment variables always override the file: `EVAL_JUDGE_MODEL`, `EVAL_BASE_URL`, `EVAL_THRESHOLD`, `EVAL_RESULTS_DIR`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`.
 
 ## CLI reference
 
@@ -55,6 +77,13 @@ eval run <suite>           Run an eval suite
   --judge-model            Model used to score responses (default: gpt-4o-mini)
   --base-url               OpenAI-compatible base URL (omit for official OpenAI)
   --threshold              Min score to count as pass (default: 0.5)
+  --results-dir            Results directory (default: results/)
+
+eval list                  List all past runs (newest first)
+  --results-dir            Results directory (default: results/)
+
+eval compare <a> <b>       Compare two runs — regressions in red, improvements in green
+  --results-dir            Results directory (default: results/)
 
 eval serve                 Start the web dashboard at http://localhost:8000
   --host                   Bind host (default: 127.0.0.1)
@@ -70,7 +99,8 @@ llm-eval-bench/
 │   └── llm_eval_bench/
 │       ├── __init__.py       # package version (0.1.0)
 │       ├── __main__.py       # python -m llm_eval_bench entry point
-│       ├── cli.py            # typer CLI — eval run with rich progress
+│       ├── cli.py            # typer CLI — eval run/list/compare/serve
+│       ├── config.py         # EvalConfig — loads .evalrc.yaml + env vars
 │       ├── schema.py         # Pydantic v2 models: TestCase, EvalSuite
 │       ├── loader.py         # load_suite(path) — reads and validates a YAML suite
 │       ├── runner.py         # run_suite() — orchestrates model calls + judge
@@ -88,7 +118,9 @@ llm-eval-bench/
 │   ├── test_loader.py        # loader unit tests
 │   ├── test_runner.py        # runner unit tests (mocked API calls)
 │   ├── test_judge.py         # judge unit tests (mocked API calls)
-│   └── test_dashboard.py     # dashboard route tests (TestClient)
+│   ├── test_dashboard.py     # dashboard route tests (TestClient)
+│   ├── test_cli.py           # CLI list/compare tests (CliRunner)
+│   └── test_config.py        # config loader tests
 ├── results/                  # run outputs (git-ignored, created at runtime)
 ├── pyproject.toml
 ├── requirements.txt
@@ -102,7 +134,7 @@ llm-eval-bench/
 - [x] **M2** — YAML schema + loader: define test-case schema with Pydantic, load suites
 - [x] **M3** — runner + LLM-as-judge scorer: call models, score with judge, persist JSON results
 - [x] **M4** — FastAPI + Jinja2 dashboard: `eval serve` command, index/run-detail/compare pages
-- [ ] **M5** — polish: CI smoke test, extended example suites
+- [x] **M5** — cli polish + compare command: `eval list`, `eval compare`, `.evalrc.yaml` config system
 - [ ] **M6** — polish: CI smoke test, extended example suites
 
 ## License

@@ -7,7 +7,7 @@ import anthropic
 import openai
 
 from llm_eval_bench.judge import judge_response
-from llm_eval_bench.result import CaseResult, RunResult, make_run_id, save_run
+from llm_eval_bench.result import CaseResult, RunResult, make_run_id
 from llm_eval_bench.schema import EvalSuite, TestCase
 
 
@@ -102,5 +102,4 @@ def run_suite(
         cases=case_results,
         created_at=datetime.utcnow().isoformat() + "Z",
     )
-    save_run(run)
     return run
