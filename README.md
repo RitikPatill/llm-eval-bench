@@ -1,142 +1,151 @@
 # LLM Eval Bench
 
-## What is LLM Eval Bench
+> Lightweight local eval harness: define test cases in YAML, score with an LLM judge, track regressions in a web dashboard.
 
-LLM Eval Bench is a local-first evaluation harness for anyone building products on top of large language models. You write test cases in plain YAML — a prompt, an expected behaviour, and a scoring rubric — point it at any OpenAI-compatible endpoint or the Anthropic API, and it runs every case, judges each response with a secondary LLM call (LLM-as-judge pattern), and surfaces a pass/fail/score report in the terminal and a minimal web dashboard.
+<!-- TODO: replace with a 5-10 second demo gif. Record with ScreenToGif on
+     Windows or peek on macOS/Linux. The VHS tape script is at docs/demo.tape —
+     run `vhs docs/demo.tape` if you have VHS installed. Save the output to
+     docs/demo.gif and update the path here. -->
 
-## Why it exists
+## What it is
 
-Every serious LLM product team needs regression testing, but existing frameworks (PromptFoo, RAGAS, Braintrust) are either vendor-locked, heavy, or SaaS. LLM Eval Bench gives you a zero-dependency-on-cloud, fully inspectable harness that runs on `localhost` in under a minute. Flat JSON result files mean full reproducibility and easy diffing — no database, no account required.
+LLM Eval Bench is a local-first regression-testing harness for LLM-powered products. You write test cases in plain YAML — a prompt, a free-text rubric describing expected behaviour, and optional tags — then point the tool at any OpenAI-compatible endpoint or the Anthropic API. The runner calls the target model for each case, forwards the response to a secondary judge model (LLM-as-judge pattern), and collects a 0–1 score plus a one-line rationale for every result.
 
-## What works now (M5)
+Results land in timestamped JSON files under `results/`. A `rich`-powered CLI lets you list runs and diff two runs side-by-side. A minimal FastAPI + Jinja2 dashboard at `http://localhost:8000` shows per-run pass rates, per-case score history sparklines, and a regression/improvement diff view. No database, no cloud account, no account required.
 
-- Python package installable via `pip install -e .`
-- **`eval run <suite.yaml>`** — fully working CLI command; `rich` progress bar updates per-case with score and pass/fail as each result lands; prints a summary panel (pass count, pass rate, results path) on completion
-- **Runner** — calls target model (OpenAI-compatible or Anthropic) per test case, routes via SDK based on model name (`claude-*` → Anthropic, everything else → OpenAI)
-- **LLM-as-judge scorer** — calls a judge model (OpenAI-compatible only; default `gpt-4o-mini`) with a structured rubric prompt; returns `{score, rationale}` JSON; score clamped to [0.0, 1.0]; falls back to `(0.0, "parse error: …")` on malformed output
-- **JSON persistence** — each run saved as `results/<run_id>.json` (git-ignored); run ID is a UTC timestamp (`YYYYMMDD_HHMMSS`)
-- **Pydantic v2 schema** — `TestCase`, `EvalSuite`, `CaseResult`, `RunResult` models
-- **YAML suite loader** — `load_suite(path)` reads and validates YAML into `EvalSuite`
-- **Three bundled example suites** under `examples/`: `factuality.yaml`, `instruction_following.yaml`, `code_quality.yaml`
-- **Unit tests** — runner (model resolution, SDK routing, end-to-end with mocks), judge (JSON parsing, fallback, score clamping), dashboard (all routes), CLI (list/compare), config loader — all passing
-- **`eval serve`** — starts a FastAPI + Jinja2 dashboard at `http://localhost:8000`; index lists all runs with pass rates; run-detail page shows per-case scores and prompt/response accordions; compare page diffs two runs side-by-side with regression/improvement highlighting
-- **`eval list`** — prints a Rich table of all past runs (run ID, suite, cases, passed, pass rate, created at), newest-first
-- **`eval compare <run_id_a> <run_id_b>`** — prints a per-case score delta table (red = regression, green = improvement); summary line counts regressions/improvements/unchanged
-- **Config system** — load defaults from `~/.evalrc.yaml` or `./.evalrc.yaml`; override with `EVAL_JUDGE_MODEL`, `EVAL_BASE_URL`, `EVAL_THRESHOLD`, `EVAL_RESULTS_DIR`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` env vars; no longer have to repeat flags on every invocation
-
-## Quick start
+## Quickstart
 
 ```bash
-# Install in editable mode
+git clone https://github.com/RitikPatill/llm-eval-bench.git
+cd llm-eval-bench
+
+# Python 3.11+ required
 pip install -e .
 
-# Set API keys
+# Provide at least one API key (whichever you will use as the judge/target)
 export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...   # only needed for claude-* target models
 
-# Run an eval suite (uses gpt-4o-mini as both target and judge by default)
+# Run the bundled factuality suite
 eval run examples/factuality.yaml --model gpt-4o-mini
 
-# Override the judge model
-eval run examples/instruction_following.yaml --model gpt-4o-mini --judge-model gpt-4o
-
-# Use an OpenAI-compatible local endpoint
-eval run examples/code_quality.yaml --model my-local-model --base-url http://localhost:11434/v1
-
-# Set a custom pass threshold (default 0.5)
-eval run examples/factuality.yaml --model gpt-4o-mini --threshold 0.7
-
-# Serve the dashboard
+# Start the dashboard
 eval serve
-
-# List all past runs
-eval list
-
-# Compare two runs by run ID
-eval compare 20241031_143022 20241101_090000
+# open http://localhost:8000
 ```
 
-## Config file (`.evalrc.yaml`)
+## Usage
 
-Place `.evalrc.yaml` in your project root (or `~/.evalrc.yaml` for global defaults):
+**Run a suite and inspect results in the terminal:**
+
+```bash
+eval run examples/instruction_following.yaml --model gpt-4o-mini --judge-model gpt-4o --threshold 0.7
+```
+
+The terminal shows a `rich` progress bar that updates per case with its score and pass/fail status, then prints a summary panel with the overall pass rate and the path to the saved JSON file.
+
+**Compare two runs to catch regressions:**
+
+```bash
+eval list                                        # find run IDs
+eval compare 20241031_143022 20241101_090000     # diff by run ID
+```
+
+Red rows are regressions; green rows are improvements. A summary line counts each category.
+
+**Use a local model via an OpenAI-compatible endpoint:**
+
+```bash
+eval run examples/code_quality.yaml --model my-model --base-url http://localhost:11434/v1
+```
+
+**Persist defaults in `.evalrc.yaml`** (project root or `~`):
 
 ```yaml
 judge_model: gpt-4o-mini
 threshold: 0.5
 results_dir: results
-# base_url: http://localhost:11434/v1  # for local endpoints
+# base_url: http://localhost:11434/v1
 ```
 
-Environment variables always override the file: `EVAL_JUDGE_MODEL`, `EVAL_BASE_URL`, `EVAL_THRESHOLD`, `EVAL_RESULTS_DIR`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`.
+Environment variables (`EVAL_JUDGE_MODEL`, `EVAL_BASE_URL`, `EVAL_THRESHOLD`, `EVAL_RESULTS_DIR`) always override the file.
 
-## CLI reference
+**Write a test case** — the `expected_behaviour` field is a free-text rubric passed verbatim to the judge:
+
+```yaml
+suite: my_suite
+cases:
+  - id: capital-au
+    prompt: "What is the capital of Australia?"
+    expected_behaviour: >
+      Must answer Canberra. Must not confuse the capital with Sydney or Melbourne.
+    tags: [factuality]
+```
+
+## Architecture
 
 ```
-eval run <suite>           Run an eval suite
-  --model / -m             Override model for all cases
-  --judge-model            Model used to score responses (default: gpt-4o-mini)
-  --base-url               OpenAI-compatible base URL (omit for official OpenAI)
-  --threshold              Min score to count as pass (default: 0.5)
-  --results-dir            Results directory (default: results/)
-
-eval list                  List all past runs (newest first)
-  --results-dir            Results directory (default: results/)
-
-eval compare <a> <b>       Compare two runs — regressions in red, improvements in green
-  --results-dir            Results directory (default: results/)
-
-eval serve                 Start the web dashboard at http://localhost:8000
-  --host                   Bind host (default: 127.0.0.1)
-  --port / -p              Bind port (default: 8000)
-  --results-dir            Results directory (default: results/)
+┌──────────────┐     ┌────────┐     ┌───────────┐     ┌─────────────┐
+│  YAML Suite  │────▶│ Loader │────▶│  Runner   │────▶│  Target LLM │
+└──────────────┘     └────────┘     └─────┬─────┘     └──────┬──────┘
+                                          │                   │ response
+                                          │            ┌──────▼──────┐
+                                          │            │  Judge LLM  │
+                                          │            └──────┬──────┘
+                                          │  CaseResult       │
+                                    ┌─────▼───────────────────▼─────┐
+                                    │       JSON Store (results/)    │
+                                    └──────────┬──────────┬──────────┘
+                                               │          │
+                                        ┌──────▼──┐  ┌───▼──────┐
+                                        │   CLI   │  │Dashboard │
+                                        └─────────┘  └──────────┘
 ```
+
+The **Loader** parses YAML into validated Pydantic models. The **Runner** dispatches each prompt to the target model, routing `claude-*` model names to the Anthropic SDK and everything else to the OpenAI-compatible client. Each response goes to the **Judge**, which returns a structured `{score, rationale}` JSON. The assembled `RunResult` is written as a timestamped JSON file; the CLI and Dashboard read from that store independently.
 
 ## Project structure
 
 ```
 llm-eval-bench/
-├── src/
-│   └── llm_eval_bench/
-│       ├── __init__.py       # package version (0.1.0)
-│       ├── __main__.py       # python -m llm_eval_bench entry point
-│       ├── cli.py            # typer CLI — eval run/list/compare/serve
-│       ├── config.py         # EvalConfig — loads .evalrc.yaml + env vars
-│       ├── schema.py         # Pydantic v2 models: TestCase, EvalSuite
-│       ├── loader.py         # load_suite(path) — reads and validates a YAML suite
-│       ├── runner.py         # run_suite() — orchestrates model calls + judge
-│       ├── judge.py          # judge_response() — LLM-as-judge scorer
-│       ├── result.py         # CaseResult, RunResult, save_run(), load_run(), list_runs()
-│       ├── dashboard.py      # FastAPI app — index, run-detail, compare routes
-│       └── templates/        # Jinja2 HTML templates (base, index, run_detail, compare)
+├── src/llm_eval_bench/
+│   ├── cli.py            # typer CLI — eval run / list / compare / serve
+│   ├── config.py         # EvalConfig — .evalrc.yaml + env var resolution
+│   ├── schema.py         # Pydantic v2 models: TestCase, EvalSuite
+│   ├── loader.py         # load_suite() — reads and validates a YAML suite
+│   ├── runner.py         # run_suite() — orchestrates model calls + judge
+│   ├── judge.py          # judge_response() — LLM-as-judge scorer
+│   ├── result.py         # CaseResult, RunResult, save/load/list helpers
+│   ├── dashboard.py      # FastAPI app — index, run-detail, compare routes
+│   └── templates/        # Jinja2 HTML templates
+├── docs/
+│   └── demo.tape         # VHS script to regenerate demo.gif
 ├── examples/
-│   ├── factuality.yaml       # 5 factual-recall test cases
-│   ├── instruction_following.yaml  # 5 formatting/constraint test cases
-│   └── code_quality.yaml    # 5 Python code-generation test cases
-├── tests/
-│   ├── __init__.py
-│   ├── test_smoke.py         # smoke test scaffold
-│   ├── test_loader.py        # loader unit tests
-│   ├── test_runner.py        # runner unit tests (mocked API calls)
-│   ├── test_judge.py         # judge unit tests (mocked API calls)
-│   ├── test_dashboard.py     # dashboard route tests (TestClient)
-│   ├── test_cli.py           # CLI list/compare tests (CliRunner)
-│   └── test_config.py        # config loader tests
-├── results/                  # run outputs (git-ignored, created at runtime)
+│   ├── factuality.yaml            # 5 factual-recall cases
+│   ├── instruction_following.yaml # 5 formatting/constraint cases
+│   └── code_quality.yaml          # 5 Python code-generation cases
+├── tests/                # pytest suite — runner, judge, dashboard, CLI, config
+├── results/              # run outputs (git-ignored, created at runtime)
 ├── pyproject.toml
 ├── requirements.txt
-├── LICENSE
-└── README.md
+└── LICENSE
 ```
 
 ## Roadmap
 
-- [x] **M1** — scaffold + readme: package layout, pyproject.toml, README, license
-- [x] **M2** — YAML schema + loader: define test-case schema with Pydantic, load suites
-- [x] **M3** — runner + LLM-as-judge scorer: call models, score with judge, persist JSON results
-- [x] **M4** — FastAPI + Jinja2 dashboard: `eval serve` command, index/run-detail/compare pages
-- [x] **M5** — cli polish + compare command: `eval list`, `eval compare`, `.evalrc.yaml` config system
-- [ ] **M6** — polish: CI smoke test, extended example suites
+- [ ] Async runner — parallel model calls to reduce wall-clock time on large suites
+- [ ] HTML/CSV export of run results for sharing outside the dashboard
+- [ ] Anthropic-native judge support (currently judge requires an OpenAI-compatible endpoint)
+- [ ] Per-tag pass-rate breakdown in the dashboard
+- [ ] `eval watch` mode — re-run a suite automatically when YAML files change
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Built autonomously by [autodev](https://github.com/RitikPatill/autodev),
+a multi-agent orchestrator I designed. Each commit in this repo was
+authored by me; the implementation work was performed by Sonnet under
+the orchestrator's control. Read the orchestrator's README to see how.
