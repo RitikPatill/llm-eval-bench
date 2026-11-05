@@ -1,6 +1,6 @@
 # LLM Eval Bench
 
-## What is LLM Eval Bench
+<!-- demo.gif not yet generated; run `vhs docs/demo.tape` to produce it -->
 
 LLM Eval Bench is a local-first evaluation harness for anyone building products on top of large language models. You write test cases in plain YAML — a prompt, an expected behaviour, and a scoring rubric — point it at any OpenAI-compatible endpoint or the Anthropic API, and it runs every case, judges each response with a secondary LLM call (LLM-as-judge pattern), and surfaces a pass/fail/score report in the terminal and a minimal web dashboard.
 
@@ -8,7 +8,23 @@ LLM Eval Bench is a local-first evaluation harness for anyone building products 
 
 Every serious LLM product team needs regression testing, but existing frameworks (PromptFoo, RAGAS, Braintrust) are either vendor-locked, heavy, or SaaS. LLM Eval Bench gives you a zero-dependency-on-cloud, fully inspectable harness that runs on `localhost` in under a minute. Flat JSON result files mean full reproducibility and easy diffing — no database, no account required.
 
-## What works now (M5)
+## Architecture
+
+```mermaid
+flowchart LR
+    A[YAML Suite] --> B[Loader]
+    B --> C[Runner]
+    C --> D[Target LLM]
+    D --> E[Judge LLM]
+    E --> F[CaseResult]
+    F --> G[(JSON Store\nresults/)]
+    G --> H[CLI\neval list / compare]
+    G --> I[Dashboard\neval serve]
+```
+
+Data flows left to right: the **Loader** parses your YAML suite into typed `EvalSuite` / `TestCase` Pydantic models; the **Runner** sends each prompt to the **Target LLM** (OpenAI-compatible or Anthropic); each response is forwarded to the **Judge LLM** which returns a 0–1 score and a one-line rationale; results are assembled into a `RunResult` and written to a timestamped JSON file under `results/`; the **CLI** and **Dashboard** read from that store independently.
+
+## What works now (v0.1.0)
 
 - Python package installable via `pip install -e .`
 - **`eval run <suite.yaml>`** — fully working CLI command; `rich` progress bar updates per-case with score and pass/fail as each result lands; prints a summary panel (pass count, pass rate, results path) on completion
@@ -91,6 +107,27 @@ eval serve                 Start the web dashboard at http://localhost:8000
   --results-dir            Results directory (default: results/)
 ```
 
+## Custom scoring rubrics
+
+The `expected_behaviour` field in your YAML suite is free-text — it is passed verbatim into the judge prompt as the rubric. The judge has no hard-coded rules; it evaluates whatever you write there.
+
+**Example — haiku constraint:**
+
+```yaml
+suite: creative_constraints
+cases:
+  - id: haiku_reply
+    prompt: "Explain what a closure is in programming."
+    expected_behaviour: >
+      The response must be written entirely in haiku form (5-7-5 syllable
+      structure, three lines). Any prose explanation automatically fails.
+    tags: [format, creative]
+```
+
+The judge receives this rubric word-for-word and scores the response against it. Because the rubric is a plain string, you can express any criterion: tone, length, language, structured output format, citation style, or domain-specific correctness rules.
+
+**To customise the judge prompt template itself**, edit the `JUDGE_PROMPT_TEMPLATE` constant at the top of `src/llm_eval_bench/judge.py`. The template accepts three interpolation variables: `{prompt}`, `{expected_behaviour}`, and `{response}`. You can add chain-of-thought instructions, change the JSON schema, or switch to a different output format — just make sure the returned JSON still has `score` (float) and `rationale` (string) keys, or update the parsing logic in `judge_response()` accordingly.
+
 ## Project structure
 
 ```
@@ -108,6 +145,8 @@ llm-eval-bench/
 │       ├── result.py         # CaseResult, RunResult, save_run(), load_run(), list_runs()
 │       ├── dashboard.py      # FastAPI app — index, run-detail, compare routes
 │       └── templates/        # Jinja2 HTML templates (base, index, run_detail, compare)
+├── docs/
+│   └── demo.tape             # VHS tape script to regenerate demo.gif
 ├── examples/
 │   ├── factuality.yaml       # 5 factual-recall test cases
 │   ├── instruction_following.yaml  # 5 formatting/constraint test cases
@@ -128,6 +167,16 @@ llm-eval-bench/
 └── README.md
 ```
 
+## Contributing
+
+1. Fork the repo and create a feature branch (`git checkout -b feat/my-change`).
+2. Install in editable mode with dev extras: `pip install -e ".[dev]"`.
+3. Make your changes, then run the test suite: `pytest`.
+4. Lint and format: `ruff check src tests` and `ruff format src tests`.
+5. Open a pull request — describe what changed and why.
+
+Please keep PRs focused. One logical change per PR makes review faster. If you are adding a new scorer or runner backend, include at least one unit test with mocked API calls.
+
 ## Roadmap
 
 - [x] **M1** — scaffold + readme: package layout, pyproject.toml, README, license
@@ -135,7 +184,7 @@ llm-eval-bench/
 - [x] **M3** — runner + LLM-as-judge scorer: call models, score with judge, persist JSON results
 - [x] **M4** — FastAPI + Jinja2 dashboard: `eval serve` command, index/run-detail/compare pages
 - [x] **M5** — cli polish + compare command: `eval list`, `eval compare`, `.evalrc.yaml` config system
-- [ ] **M6** — polish: CI smoke test, extended example suites
+- [x] **M6** — readme polish + demo gif: architecture diagram, usage guide, contribution guide, custom rubrics how-to, v0.1.0 tag
 
 ## License
 
